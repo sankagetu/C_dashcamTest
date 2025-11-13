@@ -1,0 +1,42 @@
+name: C CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test-cover:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc libcriterion-dev lcov
+
+      - name: Configure (Debug with coverage)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build --config Debug -- -j2
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Capture coverage
+        run: |
+          lcov --directory build --capture --output-file coverage.info \
+               --rc geninfo_exclude='*/tests/*' \
+               --no-external \
+               --base-directory "${{ github.workspace }}"
+
+          genhtml coverage.info --output-directory coverage-report
+
+      - name: Upload coverage report (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
